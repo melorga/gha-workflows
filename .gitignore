@@ -1,3 +1,19 @@
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfplan
+.terraform/
+.terraform.lock.hcl
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terragrunt
+.terragrunt-cache/
+
 # IDE
 .vscode/
 .idea/
@@ -12,10 +28,18 @@ Thumbs.db
 # Logs
 *.log
 
-# Temporary files
-*.tmp
-*.temp
+# Runtime
+node_modules/
+venv/
+__pycache__/
+*.pyc
+.env
+.env.local
 
-# Test files
-test-*.yml
-test-*.yaml
+# Archives
+*.zip
+*.tar.gz
+
+# Test outputs
+test-results/
+coverage/
