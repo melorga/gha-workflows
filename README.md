@@ -1,7 +1,7 @@
 # Shared GitHub Actions Workflows
 
-[![Terraform](https://img.shields.io/badge/Terraform-1.9.8+-623CE4?style=for-the-badge&logo=terraform)](https://terraform.io/)
-[![Terragrunt](https://img.shields.io/badge/Terragrunt-0.67.16+-623CE4?style=for-the-badge&logo=terraform)](https://terragrunt.gruntwork.io/)
+[![Terraform](https://img.shields.io/badge/Terraform-1.15.1+-623CE4?style=for-the-badge&logo=terraform)](https://terraform.io/)
+[![Terragrunt](https://img.shields.io/badge/Terragrunt-1.0.3+-623CE4?style=for-the-badge&logo=terraform)](https://terragrunt.gruntwork.io/)
 [![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-CI%2FCD-2088FF?style=for-the-badge&logo=github-actions)](https://github.com/features/actions)
 
 Reusable GitHub Actions workflows for Terraform and Terragrunt CI/CD pipelines. These workflows provide enterprise-grade automation with security scanning, testing, and deployment capabilities, using AWS OIDC for short-lived, keyless authentication.
@@ -62,7 +62,7 @@ jobs:
     name: Terraform CI/CD
     uses: melorga/gha-workflows/.github/workflows/terraform.yml@main
     with:
-      terraform_version: '1.9.8'
+      terraform_version: '1.15.1'
       working_directory: './infrastructure'
       environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
       aws_role_arn: arn:aws:iam::123456789012:role/github-actions-terraform
@@ -94,8 +94,8 @@ jobs:
     name: Terragrunt CI/CD
     uses: melorga/gha-workflows/.github/workflows/terragrunt.yml@main
     with:
-      terragrunt_version: '0.67.16'
-      terraform_version: '1.9.8'
+      terragrunt_version: '1.0.3'
+      terraform_version: '1.15.1'
       working_directory: './prod/us-east-1'
       environment: 'production'
       aws_role_arn: arn:aws:iam::123456789012:role/github-actions-terragrunt
@@ -108,7 +108,7 @@ jobs:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `terraform_version` | string | `1.9.8` | Terraform version to use |
+| `terraform_version` | string | `1.15.1` | Terraform version to use |
 | `working_directory` | string | `.` | Working directory for Terraform |
 | `environment` | string | `dev` | Environment (maps to GitHub Environment) |
 | `aws_role_arn` | string | _none_ | IAM role ARN to assume via OIDC |
@@ -118,12 +118,14 @@ jobs:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `terragrunt_version` | string | `0.67.16` | Terragrunt version to use |
-| `terraform_version` | string | `1.9.8` | Terraform version to use |
+| `terragrunt_version` | string | `1.0.3` | Terragrunt version to use |
+| `terraform_version` | string | `1.15.1` | Terraform version to use |
 | `working_directory` | string | `.` | Working directory for Terragrunt |
 | `environment` | string | `dev` | Environment (maps to GitHub Environment) |
 | `aws_role_arn` | string | _none_ | IAM role ARN to assume via OIDC |
 | `aws_region` | string | `us-east-1` | AWS region |
+
+> **Note:** Terragrunt 1.0 introduced breaking changes (CAS, `hcl fmt`, experiments). If you are upgrading from a 0.x default, review the [Terragrunt 1.0 migration notes](https://terragrunt.gruntwork.io/docs/migrate/migrating-from-0.x/) before bumping.
 
 ### Required Permissions in Caller Workflow
 
@@ -134,6 +136,22 @@ jobs:
 | `pull-requests: write` | Post plan output as PR comment |
 
 No long-lived AWS access keys are required.
+
+## Pinned Action Versions
+
+These reusable workflows currently pin the following third-party actions (May 2026):
+
+| Action | Version |
+|--------|---------|
+| `actions/checkout` | `v6` |
+| `hashicorp/setup-terraform` | `v4` |
+| `aws-actions/configure-aws-credentials` | `v6` |
+| `terraform-linters/setup-tflint` | `v6` |
+| `aquasecurity/trivy-action` | `v0.36.0` |
+| `github/codeql-action/upload-sarif` | `v4` |
+| `actions/upload-artifact` | `v7` |
+| `actions/download-artifact` | `v8` |
+| `reviewdog/action-actionlint` | `v1.72.0` |
 
 ## Security Features
 
