@@ -1,5 +1,9 @@
 name: Terragrunt CI/CD
 
+# NOTE: Terragrunt 1.0 introduced breaking changes (CAS, hcl fmt, experiments).
+# Consumers upgrading from 0.x should review the Terragrunt 1.0 migration notes:
+# https://terragrunt.gruntwork.io/docs/migrate/migrating-from-0.x/
+
 on:
   workflow_call:
     inputs:
@@ -7,7 +11,7 @@ on:
         description: 'Terragrunt version to use'
         required: false
         type: string
-        default: '0.67.16'
+        default: '1.0.3'
       terraform_version:
         description: 'Terraform version to use'
         required: false
