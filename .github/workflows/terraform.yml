@@ -34,9 +34,12 @@ permissions:
   pull-requests: write
   security-events: write
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+# NOTE: do NOT declare workflow-level `concurrency:` here. In a reusable
+# workflow `github.workflow` evaluates to the CALLER's workflow name; if the
+# caller also declares `concurrency:` with the same expression (the common
+# pattern), both contexts produce an identical group key and self-deadlock.
+# GitHub then cancels the called workflow at orchestration time, before any
+# sub-jobs register check runs. Concurrency is the caller's responsibility.
 
 jobs:
   validate:
