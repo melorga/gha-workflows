@@ -101,7 +101,8 @@ jobs:
     name: Plan
     runs-on: ubuntu-latest
     needs: validate
-    if: github.event_name == 'pull_request'
+    # Runs on both PR and push so the apply job can consume the artifact.
+    # The PR-comment step inside is gated to pull_request events.
 
     steps:
       - name: Checkout
@@ -173,7 +174,7 @@ jobs:
   apply:
     name: Apply
     runs-on: ubuntu-latest
-    needs: validate
+    needs: plan
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: ${{ inputs.environment }}
 
@@ -219,7 +220,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.24'
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v6
