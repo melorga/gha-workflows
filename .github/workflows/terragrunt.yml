@@ -1,5 +1,8 @@
----
 name: Terragrunt CI/CD
+
+# NOTE: Terragrunt 1.0 introduced breaking changes (CAS, hcl fmt, experiments).
+# Consumers upgrading from 0.x should review the Terragrunt 1.0 migration notes:
+# https://terragrunt.gruntwork.io/docs/migrate/migrating-from-0.x/
 
 on:
   workflow_call:
@@ -8,12 +11,12 @@ on:
         description: 'Terragrunt version to use'
         required: false
         type: string
-        default: '0.58.7'
+        default: '1.0.3'
       terraform_version:
         description: 'Terraform version to use'
         required: false
         type: string
-        default: '1.8.5'
+        default: '1.15.1'
       working_directory:
         description: 'Working directory for Terragrunt'
         required: false
@@ -24,13 +27,24 @@ on:
         required: false
         type: string
         default: 'dev'
-    secrets:
-      AWS_ACCESS_KEY_ID:
-        required: true
-      AWS_SECRET_ACCESS_KEY:
-        required: true
-      AWS_REGION:
+      aws_role_arn:
+        description: 'AWS IAM role ARN to assume via OIDC'
         required: false
+        type: string
+      aws_region:
+        description: 'AWS region'
+        required: false
+        type: string
+        default: 'us-east-1'
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   validate:
@@ -39,10 +53,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: ${{ inputs.terraform_version }}
           terraform_wrapper: false
@@ -53,12 +67,11 @@ jobs:
           chmod +x terragrunt_linux_amd64
           sudo mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+          role-to-assume: ${{ inputs.aws_role_arn }}
+          aws-region: ${{ inputs.aws_region }}
 
       - name: Terragrunt Format Check
         working-directory: ${{ inputs.working_directory }}
@@ -66,7 +79,7 @@ jobs:
 
       - name: Terragrunt Validate
         working-directory: ${{ inputs.working_directory }}
-        run: terragrunt validate-all
+        run: terragrunt run-all validate --terragrunt-non-interactive
 
   plan:
     name: Plan
@@ -76,10 +89,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: ${{ inputs.terraform_version }}
           terraform_wrapper: false
@@ -90,16 +103,15 @@ jobs:
           chmod +x terragrunt_linux_amd64
           sudo mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+          role-to-assume: ${{ inputs.aws_role_arn }}
+          aws-region: ${{ inputs.aws_region }}
 
       - name: Terragrunt Plan
         working-directory: ${{ inputs.working_directory }}
-        run: terragrunt plan-all --terragrunt-non-interactive
+        run: terragrunt run-all plan --terragrunt-non-interactive
 
   apply:
     name: Apply
@@ -110,10 +122,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: ${{ inputs.terraform_version }}
           terraform_wrapper: false
@@ -124,13 +136,12 @@ jobs:
           chmod +x terragrunt_linux_amd64
           sudo mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+          role-to-assume: ${{ inputs.aws_role_arn }}
+          aws-region: ${{ inputs.aws_region }}
 
       - name: Terragrunt Apply
         working-directory: ${{ inputs.working_directory }}
-        run: terragrunt apply-all --terragrunt-non-interactive
+        run: terragrunt run-all apply --terragrunt-non-interactive
