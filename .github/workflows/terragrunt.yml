@@ -28,7 +28,7 @@ on:
         type: string
         default: 'dev'
       aws_role_arn:
-        description: 'AWS IAM role ARN to assume via OIDC'
+        description: 'AWS IAM role ARN to assume via OIDC. When empty, AWS-dependent steps and the plan/apply jobs are skipped.'
         required: false
         type: string
       aws_region:
@@ -46,8 +46,7 @@ permissions:
 # workflow `github.workflow` evaluates to the CALLER's workflow name; if the
 # caller also declares `concurrency:` with the same expression (the common
 # pattern), both contexts produce an identical group key and self-deadlock.
-# GitHub then cancels the called workflow at orchestration time, before any
-# sub-jobs register check runs. Concurrency is the caller's responsibility.
+# Concurrency is the caller's responsibility.
 
 jobs:
   validate:
@@ -70,7 +69,10 @@ jobs:
           chmod +x terragrunt_linux_amd64
           sudo mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
 
+      # Validate only needs HCL parsing + provider load, not AWS API access.
+      # Skip OIDC when no role is configured.
       - name: Configure AWS credentials (OIDC)
+        if: ${{ inputs.aws_role_arn != '' }}
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ inputs.aws_role_arn }}
@@ -88,7 +90,7 @@ jobs:
     name: Plan
     runs-on: ubuntu-latest
     needs: validate
-    if: github.event_name == 'pull_request'
+    if: ${{ github.event_name == 'pull_request' && inputs.aws_role_arn != '' }}
 
     steps:
       - name: Checkout
@@ -120,7 +122,7 @@ jobs:
     name: Apply
     runs-on: ubuntu-latest
     needs: validate
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && inputs.aws_role_arn != '' }}
     environment: ${{ inputs.environment }}
 
     steps:
