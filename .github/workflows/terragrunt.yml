@@ -78,13 +78,15 @@ jobs:
           role-to-assume: ${{ inputs.aws_role_arn }}
           aws-region: ${{ inputs.aws_region }}
 
+      # Terragrunt 1.0 renamed `hclfmt --terragrunt-check` -> `hcl format --check`.
       - name: Terragrunt Format Check
         working-directory: ${{ inputs.working_directory }}
-        run: terragrunt hclfmt --terragrunt-check
+        run: terragrunt hcl format --check
 
+      # Terragrunt 1.0 replaced `run-all <cmd>` with `run --all -- <cmd>`.
       - name: Terragrunt Validate
         working-directory: ${{ inputs.working_directory }}
-        run: terragrunt run-all validate --terragrunt-non-interactive
+        run: terragrunt run --all --non-interactive -- validate
 
   plan:
     name: Plan
@@ -116,7 +118,7 @@ jobs:
 
       - name: Terragrunt Plan
         working-directory: ${{ inputs.working_directory }}
-        run: terragrunt run-all plan --terragrunt-non-interactive
+        run: terragrunt run --all --non-interactive -- plan
 
   apply:
     name: Apply
@@ -149,4 +151,4 @@ jobs:
 
       - name: Terragrunt Apply
         working-directory: ${{ inputs.working_directory }}
-        run: terragrunt run-all apply --terragrunt-non-interactive
+        run: terragrunt run --all --non-interactive -- apply
