@@ -74,8 +74,6 @@ jobs:
           chmod +x terragrunt_linux_amd64
           sudo mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
 
-      # Validate only needs HCL parsing + provider load, not AWS API access.
-      # Skip OIDC when no role is configured.
       - name: Configure AWS credentials (OIDC)
         if: ${{ inputs.aws_role_arn != '' }}
         uses: aws-actions/configure-aws-credentials@v6
@@ -84,18 +82,22 @@ jobs:
           aws-region: ${{ inputs.aws_region }}
 
       # Terragrunt 1.0 renamed `hclfmt --terragrunt-check` -> `hcl format --check`.
+      # Always runs — pure HCL parsing, no AWS / no network needed.
       - name: Terragrunt Format Check
         working-directory: ${{ inputs.working_directory }}
         run: terragrunt hcl format --check
 
-      # Terragrunt 1.0 replaced `run-all <cmd>` with `run --all -- <cmd>`.
-      # `--tf-forward-stdout` surfaces terraform's actual error text instead
-      # of letting terragrunt absorb it into a single log line; `--log-level
-      # debug` adds the terragrunt-side trace. Trim back to `info` once the
-      # consumer-repo issue is diagnosed.
+      # `terragrunt run --all -- validate` runs `terragrunt init` per
+      # component, which initializes the S3 remote-state backend declared
+      # in `remote_state {}` of the root terragrunt.hcl. That requires AWS
+      # credentials. Skip when no role is configured so the validate job
+      # stays green on repos that haven't wired AWS yet (the format check
+      # above still catches HCL drift). Terragrunt 1.0 replaced
+      # `run-all <cmd>` with `run --all -- <cmd>`.
       - name: Terragrunt Validate
+        if: ${{ inputs.aws_role_arn != '' }}
         working-directory: ${{ inputs.working_directory }}
-        run: terragrunt run --all --non-interactive --log-level debug --tf-forward-stdout -- validate
+        run: terragrunt run --all --non-interactive -- validate
 
   plan:
     name: Plan
