@@ -89,9 +89,13 @@ jobs:
         run: terragrunt hcl format --check
 
       # Terragrunt 1.0 replaced `run-all <cmd>` with `run --all -- <cmd>`.
+      # `--tf-forward-stdout` surfaces terraform's actual error text instead
+      # of letting terragrunt absorb it into a single log line; `--log-level
+      # debug` adds the terragrunt-side trace. Trim back to `info` once the
+      # consumer-repo issue is diagnosed.
       - name: Terragrunt Validate
         working-directory: ${{ inputs.working_directory }}
-        run: terragrunt run --all --non-interactive -- validate
+        run: terragrunt run --all --non-interactive --log-level debug --tf-forward-stdout -- validate
 
   plan:
     name: Plan
