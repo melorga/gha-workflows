@@ -52,6 +52,11 @@ jobs:
   validate:
     name: Validate
     runs-on: ubuntu-latest
+    # Terragrunt 1.0's `--tf-path` defaults to `tofu` (OpenTofu). We install
+    # Terraform via setup-terraform, so pin every terragrunt invocation to
+    # the terraform binary or it exits 1 with a "tofu not found" failure.
+    env:
+      TG_TF_PATH: terraform
 
     steps:
       - name: Checkout
@@ -93,6 +98,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: validate
     if: ${{ github.event_name == 'pull_request' && inputs.aws_role_arn != '' }}
+    env:
+      TG_TF_PATH: terraform
 
     steps:
       - name: Checkout
@@ -126,6 +133,8 @@ jobs:
     needs: validate
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && inputs.aws_role_arn != '' }}
     environment: ${{ inputs.environment }}
+    env:
+      TG_TF_PATH: terraform
 
     steps:
       - name: Checkout
