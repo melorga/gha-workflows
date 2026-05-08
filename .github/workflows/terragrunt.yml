@@ -28,7 +28,7 @@ on:
         type: string
         default: 'dev'
       aws_role_arn:
-        description: 'AWS IAM role ARN to assume via OIDC'
+        description: 'AWS IAM role ARN to assume via OIDC. When empty, AWS-dependent steps and the plan/apply jobs are skipped.'
         required: false
         type: string
       aws_region:
@@ -42,14 +42,21 @@ permissions:
   id-token: write
   pull-requests: write
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+# NOTE: do NOT declare workflow-level `concurrency:` here. In a reusable
+# workflow `github.workflow` evaluates to the CALLER's workflow name; if the
+# caller also declares `concurrency:` with the same expression (the common
+# pattern), both contexts produce an identical group key and self-deadlock.
+# Concurrency is the caller's responsibility.
 
 jobs:
   validate:
     name: Validate
     runs-on: ubuntu-latest
+    # Terragrunt 1.0's `--tf-path` defaults to `tofu` (OpenTofu). We install
+    # Terraform via setup-terraform, so pin every terragrunt invocation to
+    # the terraform binary or it exits 1 with a "tofu not found" failure.
+    env:
+      TG_TF_PATH: terraform
 
     steps:
       - name: Checkout
@@ -68,24 +75,37 @@ jobs:
           sudo mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
 
       - name: Configure AWS credentials (OIDC)
+        if: ${{ inputs.aws_role_arn != '' }}
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ inputs.aws_role_arn }}
           aws-region: ${{ inputs.aws_region }}
 
+      # Terragrunt 1.0 renamed `hclfmt --terragrunt-check` -> `hcl format --check`.
+      # Always runs — pure HCL parsing, no AWS / no network needed.
       - name: Terragrunt Format Check
         working-directory: ${{ inputs.working_directory }}
-        run: terragrunt hclfmt --terragrunt-check
+        run: terragrunt hcl format --check
 
+      # `terragrunt run --all -- validate` runs `terragrunt init` per
+      # component, which initializes the S3 remote-state backend declared
+      # in `remote_state {}` of the root terragrunt.hcl. That requires AWS
+      # credentials. Skip when no role is configured so the validate job
+      # stays green on repos that haven't wired AWS yet (the format check
+      # above still catches HCL drift). Terragrunt 1.0 replaced
+      # `run-all <cmd>` with `run --all -- <cmd>`.
       - name: Terragrunt Validate
+        if: ${{ inputs.aws_role_arn != '' }}
         working-directory: ${{ inputs.working_directory }}
-        run: terragrunt run-all validate --terragrunt-non-interactive
+        run: terragrunt run --all --non-interactive -- validate
 
   plan:
     name: Plan
     runs-on: ubuntu-latest
     needs: validate
-    if: github.event_name == 'pull_request'
+    if: ${{ github.event_name == 'pull_request' && inputs.aws_role_arn != '' }}
+    env:
+      TG_TF_PATH: terraform
 
     steps:
       - name: Checkout
@@ -111,14 +131,16 @@ jobs:
 
       - name: Terragrunt Plan
         working-directory: ${{ inputs.working_directory }}
-        run: terragrunt run-all plan --terragrunt-non-interactive
+        run: terragrunt run --all --non-interactive -- plan
 
   apply:
     name: Apply
     runs-on: ubuntu-latest
     needs: validate
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && inputs.aws_role_arn != '' }}
     environment: ${{ inputs.environment }}
+    env:
+      TG_TF_PATH: terraform
 
     steps:
       - name: Checkout
@@ -144,4 +166,4 @@ jobs:
 
       - name: Terragrunt Apply
         working-directory: ${{ inputs.working_directory }}
-        run: terragrunt run-all apply --terragrunt-non-interactive
+        run: terragrunt run --all --non-interactive -- apply
